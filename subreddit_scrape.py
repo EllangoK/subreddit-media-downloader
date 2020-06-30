@@ -3,13 +3,13 @@
 
 from psaw import PushshiftAPI
 from bs4 import BeautifulSoup
+import urllib.request
 import requests
 import shutil
 import math
+import time
 import sys
 import os
-
-import urllib.request
 
 help_message = """
 Easily scrape a subreddit for its images and videos
@@ -28,6 +28,7 @@ Thus, images and videos can be gathered without authentication
 
 Use quotes if more than one word
 """
+omitted = []
 
 def printProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█', printEnd="\r"):
     percent = ("{0:." + str(decimals) + "f}").format(100 *
@@ -47,21 +48,30 @@ def gfycat_source(url):
     try:
         return [item.get('src') for item in list(soup.find_all("source")) if item.get('src') is not None and 'mobile' not in item.get('src') and 'mp4' in item.get('src')][0]
     except:
-        pass
+        return None
+
+def ensure_gfycat(url):
+    if url == None:
+        return url
+    for i in range(0,10):
+        try:
+            urllib.request.urlopen(url).getcode()
+            return url
+        except:            
+            url = url.replace(url[url.find('thcf')+4], str(i))
 
 def source_url(link):
     if '?' in link:
         link = link.split('?')[0]
     if link.endswith('.gifv'):
         link = link[:-1]
-    url = None
     if any(item in link for item in ['gfycat', 'gifdeliverynetwork', 'redgifs']):
-        url = gfycat_source(link)
+        link = ensure_gfycat(gfycat_source(link))
     elif '/imgur.com' in link and not any(item in link for item in ['/a/', '/gallery/']):
-        url = link.replace('imgur', 'i.imgur') + '.jpg'
+        link = link.replace('imgur', 'i.imgur') + '.jpg'
     elif any(link.endswith(item) for item in ['.gif', '.mp4', '.webm', '.jpg', '.jpeg', '.png']):
-        url = link
-    return url
+        link = link
+    return link
 
 def download_images(folder_name, file_names_and_download_links):
     folder_name = os.path.join(os.getcwd(), folder_name)
@@ -74,11 +84,20 @@ def download_images(folder_name, file_names_and_download_links):
     for i, item in enumerate(file_names_and_download_links):
         printProgressBar(i + 1, len(file_names_and_download_links), prefix='Progress:',
                          suffix='Complete', length=60)
-        try:
-            urllib.request.urlretrieve(item[1], folder_name + '\\' + item[0])
-        except:
-            continue
-    pass
+        if item[1] is not None and 'thcf' in item[1]:
+            downloaded = False
+            while not downloaded:
+                try:
+                    urllib.request.urlretrieve(item[1], folder_name + '\\' + item[0])
+                    downloaded = True
+                except:
+                    continue
+        else:
+            try:
+                urllib.request.urlretrieve(item[1], folder_name + '\\' + item[0])
+            except:
+                omitted.append(item[1])
+                continue
 
 def search_pushshift(subreddit_name, search_term):
     api = PushshiftAPI()
@@ -90,7 +109,7 @@ def search_pushshift(subreddit_name, search_term):
     return [item for item in psaw_search if 'reddit.com/r/' not in item[4]]
 
 def pushshift_based(results):
-    useful_info = [item[2:5] for item in results]
+    useful_info = [item[2:5] for item in results if None not in item[2:5]]
     return useful_info
 
 def praw_based(results):
@@ -175,4 +194,4 @@ if __name__ == '__main__':
 
         print("Downloading " + str(len(file_names_and_download_links)) + " Images out of a possible " + str(len(pushshift_results)) + " Images")
         download_images(args[1], file_names_and_download_links)
-
+    print(omitted)

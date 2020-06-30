@@ -146,15 +146,13 @@ if __name__ == '__main__':
         printProgressBar(0, len(information), prefix='Progress:',
                         suffix='Complete', length=60)
                         
-        download_links = []
+        file_names_and_download_links = []
         for i, item in enumerate(information):
+            source_link = source_url(item[2])
+            file_names_and_download_links.append((str(item[0]) + '.' +
+                                                  str(source_link).split('.')[-1], source_link))
             printProgressBar(i + 1, len(information),
                              prefix='Progress:', suffix='Complete', length=60)
-            download_links.append(source_url(item[2]))
-        file_names = [str(item[0]) + '.' + source_url(item[2]).split('.')[-1] for item in information]
-
-        file_names_and_download_links = [(item[0], item[1]) for item in zip(
-            file_names, download_links) if item[0] and item[1]]
 
         print("Downloading " + str(len(file_names_and_download_links)) + " Images")
         download_images(args[1], file_names_and_download_links)
@@ -162,20 +160,18 @@ if __name__ == '__main__':
         print("Gathering Upvote Data")
         information = threshold(praw_based(pushshift_results), upvote_thresh)
 
-        print("Gathering " + str(len(information)) + " Source Links")
+        print("Gathering " + str(len(information)) +
+              " Source Links out of a possible " + str(len(pushshift_results)) + " Links")
         printProgressBar(0, len(information), prefix='Progress:',
                          suffix='Complete', length=60)
 
-        download_links = []
-        for i, item in enumerate(information):
+        file_names_and_download_links = []
+        for i, item in enumerate(information):            
+            source_link = source_url(item[2])
+            file_names_and_download_links.append((str(item[3]) + ',' + str(item[0]) + '.' +
+                                                 str(source_link).split('.')[-1], source_link))
             printProgressBar(i + 1, len(information),
                              prefix='Progress:', suffix='Complete', length=60)
-            download_links.append(source_url(item[2]))
-        file_names = [str(item[3]) + ',' + str(item[0]) + '.' + source_url(item[2]
-                                                      ).split('.')[-1] for item in information]
-
-        file_names_and_download_links = [
-            (item[0], item[1]) for item in zip(file_names, download_links) if item[0] and item[1]]
 
         print("Downloading " + str(len(file_names_and_download_links)) + " Images out of a possible " + str(len(pushshift_results)) + " Images")
         download_images(args[1], file_names_and_download_links)

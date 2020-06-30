@@ -5,6 +5,7 @@ from psaw import PushshiftAPI
 from bs4 import BeautifulSoup
 import requests
 import sys
+import os
 
 import urllib.request
 
@@ -25,19 +26,19 @@ Thus, images and videos can be gathered without authentication
 Use quotes if more than one word
 """
 
-'''
-for (idx, item) in enumerate(not_duplicates):
-    print(item[3],
-          'C:\\img\\'
-          + str(item[1]) + '.' + str((item[3])[-3:]))
-    try:
-        urllib.request.urlretrieve(item[3], 
-                                    'C:\\img\\'
-                                    + str(item[2]) + ',' + str(idx)
-                                    + str((item[3])[-4:]))
-    except:
-        pass
-'''
+def progressBar(iterable, prefix='', suffix='', decimals=1, length=100, fill='█', printEnd="\r"):
+    total = len(iterable)
+    def printProgressBar(iteration):
+        percent = ("{0:." + str(decimals) + "f}").format(100 *
+                                                         (iteration / float(total)))
+        filledLength = int(length * iteration // total)
+        bar = fill * filledLength + '-' * (length - filledLength)
+        print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+    printProgressBar(0)
+    for i, item in enumerate(iterable):
+        yield item
+        printProgressBar(i + 1)
+    print()
 
 def threshold(data, upvote_thresh):
     return [item for item in data if int(item[3]) > upvote_thresh]
@@ -58,13 +59,24 @@ def source_url(link):
         url = link.replace('imgur', 'i.imgur') + '.jpg'
     elif any(link.endswith(item) for item in ['.gif', '.mp4', '.webm', '.jpg', '.jpeg', '.png']):
         url = link
+    return url
+
+def download_images(folder_name, file_names_and_download_links):
+    folder_name = os.path.join(os.getcwd(), folder_name)
+    os.mkdir(folder_name)
+    for item in progressBar(file_names_and_download_links, prefix='Progress:', suffix='Complete', length=60):
+        try:
+            urllib.request.urlretrieve(item[1], folder_name + '\\' + item[0])
+        except:
+            continue
+    pass
 
 def search_pushshift(subreddit_name, search_term):
     api = PushshiftAPI()
-    psaw_search = list(api.search_submissions(q="Azula", subreddit="rule34",
+    psaw_search = list(api.search_submissions(q=search_term, subreddit=subreddit_name,
                                             filter=['id', 'author',
                                                     'title', 'url'],
-                                            limit=10000))
+                                            limit=5000))
 
     return [item for item in psaw_search if 'reddit.com/r/' not in item[4]]
 
@@ -81,8 +93,13 @@ def praw_based(results):
 
     useful_info = []
     for submission in r.info(fullnames):
-        useful_info.append([submission.id, submission.title,
-                            submission.url, submission.score])
+        info = [submission.id, submission.title,
+                submission.url, submission.score]
+        if None not in info:
+            useful_info.append(info)
+        else:
+            continue
+    return useful_info
 
 if __name__ == '__main__':
     args = sys.argv[1:]
@@ -104,6 +121,11 @@ if __name__ == '__main__':
 
     if not upvote_thresh:
         information = pushshift_based(pushshift_results)
+        file_names_and_download_links = [(str(item[0]) + '.' + source_url(item[2]).split('.')[-1], source_url(item[2])) for item in information if source_url(item[2])]
+        download_images(args[1], file_names_and_download_links)
     else:
         information = threshold(praw_based(pushshift_results), upvote_thresh)
+        file_names_and_download_links = [(str(item[3]) + ',' + str(item[0]) + '.' + source_url(item[2]).split(
+            '.')[-1], source_url(item[2])) for item in information if source_url(item[2])]
+        download_images(args[1], file_names_and_download_links)
 

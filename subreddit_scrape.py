@@ -44,7 +44,10 @@ def threshold(data, upvote_thresh):
 
 def gfycat_source(url):
     soup = BeautifulSoup(requests.get(url).content, 'html.parser')
-    return [item.get('src') for item in list(soup.find_all("source")) if item.get('src') is not None and 'mobile' not in item.get('src') and 'mp4' in item.get('src')][0]
+    try:
+        return [item.get('src') for item in list(soup.find_all("source")) if item.get('src') is not None and 'mobile' not in item.get('src') and 'mp4' in item.get('src')][0]
+    except:
+        pass
 
 def source_url(link):
     if '?' in link:
@@ -138,14 +141,42 @@ if __name__ == '__main__':
 
     if not upvote_thresh:
         information = pushshift_based(pushshift_results)
-        file_names_and_download_links = [(str(item[0]) + '.' + source_url(item[2]).split('.')[-1], source_url(item[2])) for item in information if source_url(item[2])]
+
+        print("Gathering " + str(len(information)) + " Source Links")
+        printProgressBar(0, len(information), prefix='Progress:',
+                        suffix='Complete', length=60)
+                        
+        download_links = []
+        for i, item in enumerate(information):
+            printProgressBar(i + 1, len(information),
+                             prefix='Progress:', suffix='Complete', length=60)
+            download_links.append(source_url(item[2]))
+        file_names = [str(item[0]) + '.' + source_url(item[2]).split('.')[-1] for item in information]
+
+        file_names_and_download_links = [(item[0], item[1]) for item in zip(
+            file_names, download_links) if item[0] and item[1]]
+
         print("Downloading " + str(len(file_names_and_download_links)) + " Images")
         download_images(args[1], file_names_and_download_links)
     else:
         print("Gathering Upvote Data")
         information = threshold(praw_based(pushshift_results), upvote_thresh)
-        file_names_and_download_links = [(str(item[3]) + ',' + str(item[0]) + '.' + source_url(item[2]).split(
-            '.')[-1], source_url(item[2])) for item in information if source_url(item[2])]
+
+        print("Gathering " + str(len(information)) + " Source Links")
+        printProgressBar(0, len(information), prefix='Progress:',
+                         suffix='Complete', length=60)
+
+        download_links = []
+        for i, item in enumerate(information):
+            printProgressBar(i + 1, len(information),
+                             prefix='Progress:', suffix='Complete', length=60)
+            download_links.append(source_url(item[2]))
+        file_names = [str(item[3]) + ',' + str(item[0]) + '.' + source_url(item[2]
+                                                      ).split('.')[-1] for item in information]
+
+        file_names_and_download_links = [
+            (item[0], item[1]) for item in zip(file_names, download_links) if item[0] and item[1]]
+
         print("Downloading " + str(len(file_names_and_download_links)) + " Images out of a possible " + str(len(pushshift_results)) + " Images")
         download_images(args[1], file_names_and_download_links)
 

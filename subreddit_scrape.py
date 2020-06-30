@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 
 from psaw import PushshiftAPI
-import praw
-
+from bs4 import BeautifulSoup
+import requests
 import sys
+
 import urllib.request
 
 help_message = """
@@ -25,56 +26,63 @@ Use quotes if more than one word
 """
 
 '''
-
-r = praw.Reddit('bot1')
-
-fullnames = []
-for id in [i[2] for i in psaw_search]:
-    fullnames.append('t3_' + id)
-
-useful_info = []
-for submission in r.info(fullnames):
-    b = [submission.id, submission.title, submission.score,
-         submission.url]
-    useful_info.append(b)
-
-threshold = [item for item in useful_info if int(item[2]) > 300]
-len(threshold)
-
-not_duplicates = []
-for item in threshold:
-    print item
-    if item[3] not in [item[3] for item in not_duplicates] or item[1] \
-            not in [item[1] for item in not_duplicates]:
-        not_duplicates.append(item)
-len(not_duplicates)
-
-
 for (idx, item) in enumerate(not_duplicates):
     print(item[3],
           'C:\\img\\'
           + str(item[1]) + '.' + str((item[3])[-3:]))
     try:
         urllib.request.urlretrieve(item[3], 
-                                   'C:\\img\\'
-                                   + str(item[2]) + ',' + str(idx)
-                                   + str((item[3])[-4:]))
+                                    'C:\\img\\'
+                                    + str(item[2]) + ',' + str(idx)
+                                    + str((item[3])[-4:]))
     except:
         pass
 '''
 
+def threshold(data, upvote_thresh):
+    return [item for item in data if int(item[3]) > upvote_thresh]
+
+def gfycat_source(url):
+    soup = BeautifulSoup(requests.get(url).content, 'html.parser')
+    return [item.get('src') for item in list(soup.find_all("source")) if item.get('src') is not None and 'mobile' not in item.get('src') and 'mp4' in item.get('src')][0]
+
+def source_url(link):
+    if '?' in link:
+        link = link.split('?')[0]
+    if link.endswith('.gifv'):
+        link = link[:-1]
+    url = None
+    if any(item in link for item in ['gfycat', 'gifdeliverynetwork', 'redgifs']):
+        url = gfycat_source(link)
+    elif '/imgur.com' in link and not any(item in link for item in ['/a/', '/gallery/']):
+        url = link.replace('imgur', 'i.imgur') + '.jpg'
+    elif any(link.endswith(item) for item in ['.gif', '.mp4', '.webm', '.jpg', '.jpeg', '.png']):
+        url = link
+
 def search_pushshift(subreddit_name, search_term):
     api = PushshiftAPI()
-    psaw_search = list(api.search_submissions(q=search_term, subreddit=subreddit_name,
+    psaw_search = list(api.search_submissions(q="Azula", subreddit="rule34",
                                             filter=['id', 'author',
-                                                    'title', 'upvotes'],
+                                                    'title', 'url'],
                                             limit=10000))
 
     return [item for item in psaw_search if 'reddit.com/r/' not in item[4]]
 
-def pushshift_only(results):
-    name_and_url = [item[3:5] for item in results]
-    return name_and_url
+def pushshift_based(results):
+    useful_info = [item[2:5] for item in results]
+    return useful_info
+
+def praw_based(results):
+    import praw
+    r = praw.Reddit('bot1')
+    fullnames = []
+    for id in [i[2] for i in results]:
+        fullnames.append('t3_' + id)
+
+    useful_info = []
+    for submission in r.info(fullnames):
+        useful_info.append([submission.id, submission.title,
+                            submission.url, submission.score])
 
 if __name__ == '__main__':
     args = sys.argv[1:]
@@ -95,4 +103,7 @@ if __name__ == '__main__':
         print("No results found. Check to make sure your properly spelled the subreddit name and search term")
 
     if not upvote_thresh:
-        pushshift_only(pushshift_results)
+        information = pushshift_based(pushshift_results)
+    else:
+        information = threshold(praw_based(pushshift_results), upvote_thresh)
+

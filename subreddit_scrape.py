@@ -46,7 +46,7 @@ def threshold(data, upvote_thresh):
 def gfycat_source(url):
     soup = BeautifulSoup(requests.get(url).content, 'html.parser')
     try:
-        return [item.get('src') for item in list(soup.find_all("source")) if item.get('src') is not None and 'mobile' not in item.get('src') and 'mp4' in item.get('src')][0]
+        return [item.get('src') for item in list(soup.find_all("source")) if item.get('src') is not None and 'mobile' not in item.get('src') and 'webm' in item.get('src')][0]
     except:
         return None
 
@@ -83,20 +83,25 @@ def download_images(folder_name, file_names_and_download_links):
                      suffix='Complete', length=60)
     for i, item in enumerate(file_names_and_download_links):
         printProgressBar(i + 1, len(file_names_and_download_links), prefix='Progress:',
-                         suffix='Complete', length=60)
+                         suffix='Complete', length=60, fill='-')
+        print(item[1])
         if item[1] is not None and 'thcf' in item[1]:
-            downloaded = False
-            while not downloaded:
+            download_trials = 0
+            while download_trials < 20:
+                download_trials += 1
                 try:
                     urllib.request.urlretrieve(item[1], folder_name + '\\' + item[0])
-                    downloaded = True
+                    download_trials = 40
+                    break
                 except:
                     continue
+            if download_trials >= 20 and not download_trials == 40:
+                omitted.append((item[1], item[0]))
         else:
             try:
                 urllib.request.urlretrieve(item[1], folder_name + '\\' + item[0])
             except:
-                omitted.append(item[1])
+                omitted.append((item[1], item[0]))
                 continue
 
 def search_pushshift(subreddit_name, search_term):

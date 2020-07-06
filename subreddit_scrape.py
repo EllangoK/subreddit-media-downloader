@@ -50,23 +50,13 @@ def gfycat_source(url):
     except:
         return None
 
-def ensure_gfycat(url):
-    if url == None:
-        return url
-    for i in range(0,10):
-        try:
-            urllib.request.urlopen(url).getcode()
-            return url
-        except:            
-            url = url.replace(url[url.find('thcf')+4], str(i))
-
 def source_url(link):
     if '?' in link:
         link = link.split('?')[0]
     if link.endswith('.gifv'):
         link = link[:-1]
     if any(item in link for item in ['gfycat', 'gifdeliverynetwork', 'redgifs']):
-        link = ensure_gfycat(gfycat_source(link))
+        link = gfycat_source(link)
     elif '/imgur.com' in link and not any(item in link for item in ['/a/', '/gallery/']):
         link = link.replace('imgur', 'i.imgur') + '.jpg'
     elif any(link.endswith(item) for item in ['.gif', '.mp4', '.webm', '.jpg', '.jpeg', '.png']):
@@ -86,16 +76,18 @@ def download_images(folder_name, file_names_and_download_links):
                          suffix='Complete', length=60, fill='-')
         print(item[1])
         if item[1] is not None and 'thcf' in item[1]:
-            download_trials = 0
-            while download_trials < 20:
-                download_trials += 1
+            downloaded = False
+            for i in range(0, 10):
                 try:
-                    urllib.request.urlretrieve(item[1], folder_name + '\\' + item[0])
-                    download_trials = 40
+                    urllib.request.urlretrieve(
+                        item[1], folder_name + '\\' + item[0])
+                    downloaded = True
                     break
                 except:
+                    item[1] = item[1].replace(
+                        item[1][item[1].find('thcf')+4], str(i))
                     continue
-            if download_trials >= 20 and not download_trials == 40:
+            if not downloaded:
                 omitted.append((item[1], item[0]))
         else:
             try:
@@ -173,8 +165,8 @@ if __name__ == '__main__':
         file_names_and_download_links = []
         for i, item in enumerate(information):
             source_link = source_url(item[2])
-            file_names_and_download_links.append((str(item[0]) + '.' +
-                                                  str(source_link).split('.')[-1], source_link))
+            file_names_and_download_links.append([str(item[0]) + '.' +
+                                                  str(source_link).split('.')[-1], source_link])
             printProgressBar(i + 1, len(information),
                              prefix='Progress:', suffix='Complete', length=60)
 
@@ -192,8 +184,8 @@ if __name__ == '__main__':
         file_names_and_download_links = []
         for i, item in enumerate(information):            
             source_link = source_url(item[2])
-            file_names_and_download_links.append((str(item[3]) + ',' + str(item[0]) + '.' +
-                                                 str(source_link).split('.')[-1], source_link))
+            file_names_and_download_links.append([str(item[3]) + ',' + str(item[0]) + '.' +
+                                                 str(source_link).split('.')[-1], source_link])
             printProgressBar(i + 1, len(information),
                              prefix='Progress:', suffix='Complete', length=60)
 

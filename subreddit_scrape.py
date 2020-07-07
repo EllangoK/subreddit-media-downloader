@@ -9,6 +9,7 @@ import shutil
 import math
 import time
 import sys
+import re
 import os
 
 help_message = """
@@ -50,6 +51,20 @@ def gfycat_source(url):
     except:
         return None
 
+def imgur_album_source(url):
+    album_key = url.split(
+        'a/')[-1] if '/a/' in url else url.split('gallery/')[-1]
+    soup = BeautifulSoup(requests.get(
+        "http://imgur.com/a/" + album_key + "/layout/blog").content, 'html.parser')
+    ids = list(set(re.findall(
+        '.*?{"hash":"([a-zA-Z0-9]+)".*?"ext":"(\.[a-zA-Z0-9]+)".*?', soup.prettify())))
+    links = []
+    for item in ids:
+        links.append("https://i.imgur.com/" + ''.join(item))
+    if len(ids) == 0:
+        return url
+    return links
+
 def source_url(link):
     if '?' in link:
         link = link.split('?')[0]
@@ -59,6 +74,8 @@ def source_url(link):
         link = gfycat_source(link)
     elif '/imgur.com' in link and not any(item in link for item in ['/a/', '/gallery/']):
         link = link.replace('imgur', 'i.imgur') + '.jpg'
+    elif '/imgur.com' in link and any(item in link for item in ['/a/', '/gallery/']):
+        link = imgur_album_source(link)
     elif any(link.endswith(item) for item in ['.gif', '.mp4', '.webm', '.jpg', '.jpeg', '.png']):
         link = link
     return link
@@ -165,7 +182,12 @@ if __name__ == '__main__':
         file_names_and_download_links = []
         for i, item in enumerate(information):
             source_link = source_url(item[2])
-            file_names_and_download_links.append([str(item[0]) + '.' +
+            if isinstance(source_link, list):
+                for index, link in enumerate(source_link):
+                    file_names_and_download_links.append([str(item[0]) + '-' + str(index) + '.' +
+                                                          str(link).split('.')[-1], link])
+            else:
+                file_names_and_download_links.append([str(item[0]) + '.' +
                                                   str(source_link).split('.')[-1], source_link])
             printProgressBar(i + 1, len(information),
                              prefix='Progress:', suffix='Complete', length=60)
@@ -184,8 +206,13 @@ if __name__ == '__main__':
         file_names_and_download_links = []
         for i, item in enumerate(information):            
             source_link = source_url(item[2])
-            file_names_and_download_links.append([str(item[3]) + ',' + str(item[0]) + '.' +
-                                                 str(source_link).split('.')[-1], source_link])
+            if isinstance(source_link, list):
+                for index, link in enumerate(source_link):
+                    file_names_and_download_links.append([str(item[3]) + ',' + str(item[0]) + '-' + str(index) + '.' +
+                                                          str(link).split('.')[-1], link])
+            else:
+                file_names_and_download_links.append([str(item[3]) + ',' + str(item[0]) + '.' +
+                                                    str(source_link).split('.')[-1], source_link])
             printProgressBar(i + 1, len(information),
                              prefix='Progress:', suffix='Complete', length=60)
 

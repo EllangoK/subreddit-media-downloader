@@ -13,15 +13,15 @@ import re
 import os
 
 help_message = """
-Easily scrape a subreddit for its images and videos
+Easily download a subreddit's images and videos
 
 Format:
-    $ python subreddit_scrape.py <subreddit> <search term>
+    $ python subreddit_download.py <subreddit> <search term>
     or
-    $ python subreddit_scrape.py <subreddit> <search term> <upvote threshold>
+    $ python subreddit_download.py <subreddit> <search term> <upvote threshold>
 
 Example:
-    $ python subreddit_scrape.py pics cat
+    $ python subreddit_download.py pics cat
 
 Files are saved to a folder with the same name as the search term.
 If you omit the upvote threshold, a praw.ini file will not be required
@@ -184,9 +184,11 @@ if __name__ == '__main__':
             source_link = source_url(item[2])
             if isinstance(source_link, list):
                 for index, link in enumerate(source_link):
+                    #Id - Index . Extension
                     file_names_and_download_links.append([str(item[0]) + '-' + str(index) + '.' +
                                                           str(link).split('.')[-1], link])
             else:
+                #Id . Extension
                 file_names_and_download_links.append([str(item[0]) + '.' +
                                                   str(source_link).split('.')[-1], source_link])
             printProgressBar(i + 1, len(information),
@@ -208,9 +210,11 @@ if __name__ == '__main__':
             source_link = source_url(item[2])
             if isinstance(source_link, list):
                 for index, link in enumerate(source_link):
+                    #Upvote , Id - Index . Extension
                     file_names_and_download_links.append([str(item[3]) + ',' + str(item[0]) + '-' + str(index) + '.' +
                                                           str(link).split('.')[-1], link])
             else:
+                #Upvote , Id . Extension
                 file_names_and_download_links.append([str(item[3]) + ',' + str(item[0]) + '.' +
                                                     str(source_link).split('.')[-1], source_link])
             printProgressBar(i + 1, len(information),

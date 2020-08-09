@@ -1,0 +1,8 @@
+psaw
+beautifulsoup4
+praw
+requests
+tqdm
+scikit-image
+numpy
+opencv-python

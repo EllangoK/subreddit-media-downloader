@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 
 from skimage.metrics import structural_similarity as ssim
+from imgurpython import ImgurClient
 from collections import defaultdict
 from psaw import PushshiftAPI
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 import urllib.request
+import configparser
 import numpy as np
 import requests
 import shutil
@@ -28,11 +30,28 @@ Example:
 
 Files are saved to a folder with the same name as the search term.
 If you omit the upvote threshold, a praw.ini file will not be required
+If you want to download nsfw albums, fill out the imgur.ini file
 Thus, images and videos can be gathered without authentication
 
 Use quotes if more than one word
 """
 omitted = []
+
+def load_imgur_client(ini_file):
+    config = configparser.ConfigParser()
+    try:
+        config.read(ini_file)
+        data = config['imgur']
+        return ImgurClient(data['client_id'], data['client_secret']) if '' not in [data['client_id'], data['client_secret']] else None
+    except:
+        return None
+
+client = load_imgur_client('imgur.ini')
+
+def nsfw_links_from_album(url):
+    album_key = url.split('a/')[-1] if '/a/' in url else url.split('gallery/')[-1]
+    links = [item.link for item in client.get_album_images(album_key)]
+    return links if links else None
 
 def threshold(data, upvote_thresh):
     return [item for item in data if int(item[3]) > upvote_thresh]
@@ -70,7 +89,9 @@ def source_url(link):
     elif '/imgur.com' in link and not any(item in link for item in ['/a/', '/gallery/']):
         link = link.replace('imgur', 'i.imgur') + '.jpg'
     elif '/imgur.com' in link and any(item in link for item in ['/a/', '/gallery/']):
-        link = imgur_album_source(link)
+        link = imgur_album_source(link) #If it is a nsfw album, it returns itself else a list of link
+        if any(item in link for item in ['/a/', '/gallery/']) and client:
+            link = nsfw_links_from_album(link)
     elif any(link.endswith(item) for item in ['.gif', '.mp4', '.webm', '.jpg', '.jpeg', '.png']):
         link = link
     return link
@@ -81,7 +102,7 @@ def download_images(folder_name, file_names_and_download_links):
         shutil.rmtree(folder_name)
     os.mkdir(folder_name)
 
-    for i, item in enumerate(tqdm(file_names_and_download_links)):
+    for item in tqdm(file_names_and_download_links):
         if item[1] == None:
             continue
         if item[1] is not None and 'thcf' in item[1]:
@@ -127,7 +148,7 @@ def praw_based(results):
         fullnames.append('t3_' + id)
 
     useful_info = []
-    for i, submission in enumerate(tqdm(r.info(fullnames), total=len(fullnames))):
+    for submission in tqdm(r.info(fullnames), total=len(fullnames)):
         info = [submission.id, submission.title,
                 submission.url, submission.score]
         if None not in info:
@@ -203,7 +224,7 @@ def remove_duplicates(directory, custom=True):
     pic_hashes = {}
 
     print("Calculating dhashes")
-    for i, rel_path in enumerate(tqdm(os.listdir(directory))):
+    for rel_path in tqdm(os.listdir(directory)):
         path = directory + "/" + rel_path
         img = cv2.imread(path, 0)
         if img is None:
@@ -233,7 +254,7 @@ def remove_duplicates(directory, custom=True):
         count -= len(dupe_list)
 
         print("Deleting " + str(count) + " dupes found via Dhash")
-        for i, dupes in enumerate(tqdm(dupe_list)):
+        for dupes in tqdm(dupe_list):
             data = [(image_data[path][2], path) for path in dupes]
             if custom:
                 keep_highest_name(data)
@@ -247,7 +268,7 @@ def remove_duplicates(directory, custom=True):
 
     dupe_list = []
     print("Calculating MSE and SSIM")
-    for i, data in enumerate(tqdm(image_data)):
+    for data in tqdm(image_data):
         mse_ssim = [(key, mse(image_data[data][1], image_data[key][1]), ssim(image_data[data][1], image_data[key][1]))
                     for key in image_data if data is not key and image_data[data] is not None and image_data[key] is not None]
         dupe = [item[0]
@@ -268,7 +289,7 @@ def remove_duplicates(directory, custom=True):
         count -= len(dupe_list)
 
         print("Deleting " + str(count) + " dupes found via SSIM and MSE")
-        for i, dupes in enumerate(tqdm(dupe_list)):
+        for dupes in tqdm(dupe_list):
             data = [(image_data[path][2], path) for path in dupes]
             if custom:
                 keep_highest_name(data)
@@ -280,7 +301,7 @@ def generate_file_names_and_download_links(pushshift_results, upvote_thresh):
     if not upvote_thresh:
         information = pushshift_based(pushshift_results)
         print("Gathering " + str(len(information)) + " Source Links")
-        for i, item in enumerate(tqdm(information)):
+        for item in tqdm(information):
             source_link = source_url(item[2])
             if isinstance(source_link, list):
                 for index, link in enumerate(source_link):
@@ -297,7 +318,7 @@ def generate_file_names_and_download_links(pushshift_results, upvote_thresh):
         information = threshold(praw_based(pushshift_results), upvote_thresh)
         print("Gathering " + str(len(information)) +
               " Source Links out of a possible " + str(len(pushshift_results)) + " Links")
-        for i, item in enumerate(tqdm(information)):
+        for item in tqdm(information):
             source_link = source_url(item[2])
             if isinstance(source_link, list):
                 for index, link in enumerate(source_link):
@@ -341,7 +362,7 @@ if __name__ == '__main__':
     
     file_names_and_download_links = generate_file_names_and_download_links(
         pushshift_results, upvote_thresh)
-    folder = download_images("images/" + args[1], file_names_and_download_links)
+    folder = download_images(args[1], file_names_and_download_links)
 
     if len(omitted):
         print("These links are broken or can't be downloaded: " + str(omitted))

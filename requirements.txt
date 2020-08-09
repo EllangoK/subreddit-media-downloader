@@ -6,3 +6,4 @@ tqdm
 scikit-image
 numpy
 opencv-python
+imgurpython

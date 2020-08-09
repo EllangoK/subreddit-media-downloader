@@ -15,7 +15,11 @@ Example:
 	$ python subreddit_download.py pics cat
 
 Files are saved to a folder with the same name as the search term.
+
 If you omit the upvote threshold, a praw.ini file will not be required
+
+If you want to download nsfw albums, fill out the imgur.ini file
+
 Thus, images and videos can be gathered without authentication
 
 Use quotes if the search term is more than one world long.

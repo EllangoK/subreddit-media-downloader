@@ -1,10 +1,12 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+from imgurpython import ImgurClient
 from psaw import PushshiftAPI
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 import urllib.request
+import configparser
 import requests
 import shutil
 import math
@@ -26,11 +28,28 @@ Example:
 
 Files are saved to a folder with the same name as the search term.
 If you omit the upvote threshold, a praw.ini file will not be required
+If you want to download nsfw albums, fill out the imgur.ini file
 Thus, images and videos can be gathered without authentication
 
 Use quotes if more than one word
 """
 omitted = []
+
+def load_imgur_client(ini_file):
+    config = configparser.ConfigParser()
+    try:
+        config.read(ini_file)
+        data = config['imgur']
+        return ImgurClient(data['client_id'], data['client_secret']) if '' not in [data['client_id'], data['client_secret']] else None
+    except:
+        return None
+
+client = load_imgur_client('imgur.ini')
+
+def nsfw_links_from_album(url):
+    album_key = url.split('a/')[-1] if '/a/' in url else url.split('gallery/')[-1]
+    links = [item.link for item in client.get_album_images(album_key)]
+    return links if links else None
 
 def threshold(data, upvote_thresh):
     return [item for item in data if int(item[3]) > upvote_thresh]
@@ -66,7 +85,9 @@ def source_url(link):
     elif '/imgur.com' in link and not any(item in link for item in ['/a/', '/gallery/']):
         link = link.replace('imgur', 'i.imgur') + '.jpg'
     elif '/imgur.com' in link and any(item in link for item in ['/a/', '/gallery/']):
-        link = imgur_album_source(link)
+        link = imgur_album_source(link) #If it is a nsfw album, it returns itself else a list of link
+        if any(item in link for item in ['/a/', '/gallery/']) and client:
+            link = nsfw_links_from_album(link)
     elif any(link.endswith(item) for item in ['.gif', '.mp4', '.webm', '.jpg', '.jpeg', '.png']):
         link = link
     return link
@@ -124,7 +145,7 @@ def praw_based(results):
         fullnames.append('t3_' + id)
 
     useful_info = []
-    for i, submission in enumerate(tqdm(r.info(fullnames), total=len(fullnames))):
+    for submission in tqdm(r.info(fullnames), total=len(fullnames)):
         info = [submission.id, submission.title,
                 submission.url, submission.score]
         if None not in info:
@@ -138,7 +159,7 @@ def generate_file_names_and_download_links(pushshift_results, upvote_thresh):
     if not upvote_thresh:
         information = pushshift_based(pushshift_results)
         print("Gathering " + str(len(information)) + " Source Links")
-        for i, item in enumerate(tqdm(information)):
+        for item in tqdm(information):
             source_link = source_url(item[2])
             if isinstance(source_link, list):
                 for index, link in enumerate(source_link):
@@ -155,7 +176,7 @@ def generate_file_names_and_download_links(pushshift_results, upvote_thresh):
         information = threshold(praw_based(pushshift_results), upvote_thresh)
         print("Gathering " + str(len(information)) +
               " Source Links out of a possible " + str(len(pushshift_results)) + " Links")
-        for i, item in enumerate(tqdm(information)):
+        for item in tqdm(information):
             source_link = source_url(item[2])
             if isinstance(source_link, list):
                 for index, link in enumerate(source_link):

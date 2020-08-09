@@ -83,7 +83,7 @@ def source_url(link):
     if '?' in link:
         link = link.split('?')[0]
     if link.endswith('.gifv'):
-        link = link[:-1]
+        link = link.replace('gifv', 'mp4')
     if any(item in link for item in ['gfycat', 'gifdeliverynetwork', 'redgifs']):
         link = gfycat_source(link)
     elif '/imgur.com' in link and not any(item in link for item in ['/a/', '/gallery/']):
